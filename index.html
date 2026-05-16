@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>週刊おすすめスポット</title>
+  <style>
+    :root {
+      --bg: #f0f4f8;
+      --surface: #ffffff;
+      --primary: #3b82f6;
+      --text: #1e293b;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --radius: 12px;
+      --shadow: 0 1px 3px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.06);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Hiragino Sans", "Noto Sans JP", "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* Header */
+    header {
+      background: linear-gradient(135deg, #1e40af 0%, #3b82f6 50%, #06b6d4 100%);
+      color: #fff;
+      padding: 40px 16px 32px;
+      text-align: center;
+    }
+
+    header h1 {
+      font-size: clamp(1.4rem, 4vw, 2rem);
+      font-weight: 700;
+      letter-spacing: -.5px;
+      margin-bottom: 8px;
+    }
+
+    header .week-label {
+      font-size: .9rem;
+      opacity: .85;
+      letter-spacing: .5px;
+    }
+
+    header .subtitle {
+      margin-top: 6px;
+      font-size: .8rem;
+      opacity: .7;
+    }
+
+    /* Region tabs */
+    .tabs-wrapper {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      box-shadow: 0 2px 8px rgba(0,0,0,.06);
+    }
+
+    .tabs {
+      display: flex;
+      overflow-x: auto;
+      scrollbar-width: none;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .tabs::-webkit-scrollbar { display: none; }
+
+    .tab {
+      flex: 0 0 auto;
+      padding: 14px 20px;
+      font-size: .88rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      white-space: nowrap;
+      transition: color .15s, border-color .15s;
+      user-select: none;
+    }
+
+    .tab:hover { color: var(--primary); }
+    .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+    /* Content area */
+    main {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 28px 16px 60px;
+    }
+
+    .region-panel { display: none; }
+    .region-panel.active { display: block; }
+
+    .region-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .region-header h2 {
+      font-size: 1.25rem;
+      font-weight: 700;
+    }
+
+    .spot-count {
+      background: var(--primary);
+      color: #fff;
+      font-size: .75rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 999px;
+    }
+
+    /* Spot cards */
+    .spots-grid {
+      display: grid;
+      gap: 16px;
+    }
+
+    .spot-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 20px 22px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 4px 12px;
+      align-items: start;
+      transition: transform .15s, box-shadow .15s;
+    }
+
+    .spot-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 20px rgba(0,0,0,.12);
+    }
+
+    .spot-name {
+      font-size: 1.05rem;
+      font-weight: 700;
+      grid-column: 1;
+    }
+
+    .category-badge {
+      grid-column: 2;
+      grid-row: 1;
+      font-size: .72rem;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 999px;
+      white-space: nowrap;
+      align-self: center;
+    }
+
+    .cat-tourist    { background: #dbeafe; color: #1d4ed8; }
+    .cat-food       { background: #ffedd5; color: #c2410c; }
+    .cat-activity   { background: #dcfce7; color: #15803d; }
+    .cat-shopping   { background: #f3e8ff; color: #7e22ce; }
+    .cat-hidden     { background: #ccfbf1; color: #0f766e; }
+
+    .spot-location {
+      grid-column: 1 / -1;
+      font-size: .78rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .spot-location::before {
+      content: "📍";
+      font-size: .75rem;
+    }
+
+    .spot-address {
+      grid-column: 1 / -1;
+      font-size: .75rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .spot-address::before {
+      content: "🗺️";
+      font-size: .72rem;
+    }
+
+    .spot-access {
+      grid-column: 1 / -1;
+      font-size: .75rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .spot-access::before {
+      content: "🚉";
+      font-size: .72rem;
+    }
+
+    .spot-description {
+      grid-column: 1 / -1;
+      font-size: .88rem;
+      line-height: 1.65;
+      color: #334155;
+      margin-top: 10px;
+    }
+
+    .spot-reason {
+      grid-column: 1 / -1;
+      font-size: .82rem;
+      line-height: 1.6;
+      color: #0f766e;
+      background: #f0fdf9;
+      border-left: 3px solid #14b8a6;
+      padding: 8px 12px;
+      border-radius: 0 6px 6px 0;
+      margin-top: 10px;
+    }
+
+    .spot-reason::before {
+      content: "今週のポイント ";
+      font-weight: 700;
+    }
+
+    /* Footer */
+    footer {
+      text-align: center;
+      padding: 24px 16px;
+      font-size: .78rem;
+      color: var(--text-muted);
+      border-top: 1px solid var(--border);
+    }
+
+    /* Category filter */
+    .filter-bar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 8px 16px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+
+    .filter-bar::-webkit-scrollbar { display: none; }
+
+    #category-filter {
+      display: flex;
+      gap: 8px;
+      max-width: 900px;
+      margin: 0 auto;
+      white-space: nowrap;
+    }
+
+    .filter-btn {
+      padding: 4px 14px;
+      font-size: .78rem;
+      font-weight: 600;
+      border: 1.5px solid var(--border);
+      border-radius: 999px;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all .15s;
+    }
+
+    .filter-btn:hover { border-color: var(--primary); color: var(--primary); }
+    .filter-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+    /* Loading & error states */
+    .state-box {
+      max-width: 900px;
+      margin: 60px auto;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: .95rem;
+    }
+
+    .state-box.error { color: #dc2626; }
+
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid var(--border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      margin: 0 auto 16px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 500px) {
+      .spot-card { grid-template-columns: 1fr; }
+      .category-badge { grid-column: 1; grid-row: auto; width: fit-content; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>週刊おすすめスポット</h1>
+  <div class="week-label" id="weekLabel">読み込み中...</div>
+  <div class="subtitle">地域別・今週行きたい5スポット</div>
+</header>
+
+<div class="tabs-wrapper">
+  <div class="tabs" id="tabs"></div>
+</div>
+
+<div class="filter-bar">
+  <div id="category-filter"></div>
+</div>
+
+<main id="main"></main>
+
+<footer>
+  毎週金曜更新 ・ Claude が選ぶ今週のおすすめ
+</footer>
+
+<script type="module">
+  import { initHeader, initCategoryFilter } from './src/components/Header.js';
+  import { initTabBar } from './src/components/TabBar.js';
+  import { createSpotCard } from './src/components/SpotCard.js';
+  import { loadSpots } from './src/api/dataLoader.js';
+
+  const main = document.getElementById("main");
+
+  function showLoading() {
+    main.innerHTML = '';
+    const box = document.createElement("div");
+    box.className = "state-box";
+    box.innerHTML = '<div class="spinner"></div><p>読み込み中...</p>';
+    main.appendChild(box);
+  }
+
+  function showError(message) {
+    main.innerHTML = '';
+    const box = document.createElement("div");
+    box.className = "state-box error";
+    box.textContent = `データの読み込みに失敗しました: ${message}`;
+    main.appendChild(box);
+  }
+
+  async function renderSite() {
+    showLoading();
+    const data = await loadSpots();
+    main.innerHTML = '';
+
+    initHeader(data.week_label);
+
+    const CATEGORIES = ["観光地・名所", "飲食店・カフェ", "アクティビティ", "ショッピング", "穴場"];
+
+    const panels = data.regions.map((region, i) => {
+      const panel = document.createElement("section");
+      panel.className = "region-panel" + (i === 0 ? " active" : "");
+      panel.id = "panel-" + i;
+
+      const regionHeader = document.createElement("div");
+      regionHeader.className = "region-header";
+      const h2 = document.createElement("h2");
+      h2.textContent = region.name;
+      const count = document.createElement("span");
+      count.className = "spot-count";
+      count.textContent = `${region.spots.length} スポット`;
+      regionHeader.appendChild(h2);
+      regionHeader.appendChild(count);
+      panel.appendChild(regionHeader);
+
+      const grid = document.createElement("div");
+      grid.className = "spots-grid";
+      panel._spots = region.spots;
+      panel._grid = grid;
+      region.spots.forEach(spot => grid.appendChild(createSpotCard(spot)));
+      panel.appendChild(grid);
+
+      main.appendChild(panel);
+      return panel;
+    });
+
+    function applyFilter(category) {
+      panels.forEach(panel => {
+        const grid = panel._grid;
+        grid.innerHTML = '';
+        const filtered = category
+          ? panel._spots.filter(s => s.category === category)
+          : panel._spots;
+        filtered.forEach(spot => grid.appendChild(createSpotCard(spot)));
+      });
+    }
+
+    initCategoryFilter(CATEGORIES, applyFilter);
+
+    initTabBar(data.regions, (index) => {
+      panels.forEach((p, i) => p.classList.toggle("active", i === index));
+    });
+  }
+
+  renderSite().catch(err => showError(err.message));
+</script>
+</body>
+</html>
