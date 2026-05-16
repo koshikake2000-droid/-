@@ -288,6 +288,26 @@
       z-index: 0;
     }
 
+    .spot-card.selectable { cursor: pointer; }
+    .spot-card.selected {
+      border: 2px solid var(--primary);
+      box-shadow: 0 0 0 3px rgba(59,130,246,.15);
+    }
+
+    .map-reset-btn {
+      display: none;
+      margin-bottom: 12px;
+      padding: 6px 16px;
+      font-size: .8rem;
+      font-weight: 600;
+      border: 1.5px solid var(--primary);
+      border-radius: 999px;
+      background: transparent;
+      color: var(--primary);
+      cursor: pointer;
+    }
+    .map-reset-btn.visible { display: inline-block; }
+
     /* Loading & error states */
     .state-box {
       max-width: 900px;
@@ -372,25 +392,48 @@
 
     const CATEGORIES = ["観光地・名所", "飲食店・カフェ", "アクティビティ", "ショッピング", "穴場"];
 
-    const maps = [];
-
     function buildMap(mapEl, spots) {
       const withCoords = spots.filter(s => s.lat && s.lng);
       if (withCoords.length === 0) return null;
+
       const center = [
         withCoords.reduce((s, sp) => s + sp.lat, 0) / withCoords.length,
         withCoords.reduce((s, sp) => s + sp.lng, 0) / withCoords.length
       ];
-      const map = L.map(mapEl).setView(center, 7);
+      const map = L.map(mapEl).setView(center, 8);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
       }).addTo(map);
-      withCoords.forEach(spot => {
-        L.marker([spot.lat, spot.lng])
+
+      const markers = withCoords.map(spot => {
+        const marker = L.marker([spot.lat, spot.lng])
           .addTo(map)
           .bindPopup(`<strong>${spot.name}</strong><br>${spot.location}`);
+        marker._spot = spot;
+        return marker;
       });
-      return map;
+
+      return { map, markers, defaultCenter: center, defaultZoom: 8 };
+    }
+
+    function focusSpot(mapObj, spot, resetBtn) {
+      if (!mapObj) return;
+      mapObj.map.flyTo([spot.lat, spot.lng], 14, { duration: 0.8 });
+      mapObj.markers.forEach(m => {
+        const el = m.getElement();
+        if (el) el.style.opacity = m._spot === spot ? '1' : '0.25';
+      });
+      resetBtn.classList.add("visible");
+    }
+
+    function resetMap(mapObj, resetBtn) {
+      if (!mapObj) return;
+      mapObj.map.flyTo(mapObj.defaultCenter, mapObj.defaultZoom, { duration: 0.8 });
+      mapObj.markers.forEach(m => {
+        const el = m.getElement();
+        if (el) el.style.opacity = '1';
+      });
+      resetBtn.classList.remove("visible");
     }
 
     const panels = data.regions.map((region, i) => {
@@ -413,29 +456,53 @@
       mapEl.className = "region-map";
       panel.appendChild(mapEl);
       panel._mapEl = mapEl;
-      panel._mapInstance = null;
+      panel._mapObj = null;
+
+      const resetBtn = document.createElement("button");
+      resetBtn.className = "map-reset-btn";
+      resetBtn.textContent = "全スポットを表示";
+      panel.appendChild(resetBtn);
+
+      let selectedCard = null;
+
+      function onCardSelect(spot, card) {
+        if (selectedCard) selectedCard.classList.remove("selected");
+        if (spot && card) {
+          card.classList.add("selected");
+          selectedCard = card;
+          focusSpot(panel._mapObj, spot, resetBtn);
+        } else {
+          selectedCard = null;
+          resetMap(panel._mapObj, resetBtn);
+        }
+      }
+
+      resetBtn.addEventListener("click", () => onCardSelect(null, null));
 
       const grid = document.createElement("div");
       grid.className = "spots-grid";
       panel._spots = region.spots;
       panel._grid = grid;
-      region.spots.forEach(spot => grid.appendChild(createSpotCard(spot)));
+      panel._onCardSelect = onCardSelect;
+      panel._resetBtn = resetBtn;
+      region.spots.forEach(spot => grid.appendChild(createSpotCard(spot, onCardSelect)));
       panel.appendChild(grid);
 
       main.appendChild(panel);
       return panel;
     });
 
-    panels[0]._mapInstance = buildMap(panels[0]._mapEl, panels[0]._spots);
+    panels[0]._mapObj = buildMap(panels[0]._mapEl, panels[0]._spots);
 
     function applyFilter(category) {
       panels.forEach(panel => {
         const grid = panel._grid;
         grid.innerHTML = '';
+        panel._resetBtn.classList.remove("visible");
         const filtered = category
           ? panel._spots.filter(s => s.category === category)
           : panel._spots;
-        filtered.forEach(spot => grid.appendChild(createSpotCard(spot)));
+        filtered.forEach(spot => grid.appendChild(createSpotCard(spot, panel._onCardSelect)));
       });
     }
 
@@ -444,10 +511,10 @@
     initTabBar(data.regions, (index) => {
       panels.forEach((p, i) => p.classList.toggle("active", i === index));
       const panel = panels[index];
-      if (!panel._mapInstance) {
-        panel._mapInstance = buildMap(panel._mapEl, panel._spots);
+      if (!panel._mapObj) {
+        panel._mapObj = buildMap(panel._mapEl, panel._spots);
       } else {
-        panel._mapInstance.invalidateSize();
+        panel._mapObj.map.invalidateSize();
       }
     });
   }
